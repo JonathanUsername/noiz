@@ -1,0 +1,11 @@
+{
+  "name": "noiz",
+  "version": "1.1.0",
+  "description": "Procedurally generated \"music\"",
+  "main": "noiz.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Jon King",
+  "license": "ISC"
+}

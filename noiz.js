@@ -35,42 +35,37 @@ var count = 0
 var pos = 5
 var every = 6 // how often it changes - change to 64 ? 
 var chance_of_skip = 0.2
-var minor = [-19, -17, -16, -14, -12, -10, -9, -7, -5, -4, -2, 0, 2, 3, 5, 7, 8, 10, 12, 14, 15, 17, 19]
-var intervals = [2,1,2,2,1,2,2] // intervals in minor scale
-var minor_penta = [-12, -9, -7, -5, -2, 0, 3, 5, 7, 10, 12]
-var range = Math.abs(minor[0]) + Math.abs(minor[minor.length-1]) // the range that the random key selector reaches
-var lto_add = random_in_key(base, minor) // The first note to add
-var maxsteps = 8
+var max_steps = 11 // maximum deviation from base
+var range = walkIntervals(max_steps) + walkIntervals(max_steps, true) // the range that the random key selector reaches
+var lto_add = randomsteps(max_steps) // The first note to add
+var lead_change_frequency = 8
+var rhythm_change_frequency = 4 // was 12
 
 // Display vars
-var ch = 510, 
-    cw = 640;
+// canvas height and width, looks for canvas with id="a"
+var can = document.getElementById("a")
+var ch = can.height, 
+    cw = can.width;
 var beat_height = 10
-document.getElementsByTagName("body")[0].innerHTML = '<canvas id="c" height="' + ch + '" width="' + cw + '" style="border:1px solid #000000;"></canvas>'
-var canctx = document.getElementsByTagName("canvas")[0].getContext("2d")
+var canctx = can.getContext("2d")
 
-function random(set){
-  return set[~~(Math.random() * set.length)]
-}
-
-function random_in_key(base, type){
-  var base_code = base.toCode()
-  var random_interval = random(type)
-  return (base_code + random_interval).toChar()
-}
-
-function randomsteps(steps){
+function randomsteps(max){
   var diff = 0
   // any number of steps between 1 and 12
-  var steps = ~~(Math.random() * 11) + 1
+  var steps = ~~(Math.random() * max) + 1
   var reverse = Math.random() > 0.5 ? true : false
+  diff = walkIntervals(steps, reverse)
+  if (reverse) diff = ~diff + 1
+  return (base.toCode() + diff).toChar()
+}
+
+function walkIntervals(steps, reverse){
   // modulo 7 since intervals at index 1 and 4 in minor scale are 1 
   // 2 and 5 in reverse
+  var diff = 0
   var ones = reverse ? [2,5] : [1,4]
   for (var i=0;i<steps;i++) ones.indexOf(i % 7) == -1 ? diff += 2 : diff += 1
-  if (reverse) diff = ~diff + 1
-  console.log(diff)
-  return base.toCode() + diff
+  return diff
 }
 
 function beat(arr, times){
@@ -105,7 +100,7 @@ function moveDot(i){
 
 function display(seed){
   canctx.clearRect(0, 0, cw, ch - beat_height);
-  var lowest = base.toCode() + minor[0]
+  var lowest = base.toCode() - walkIntervals(max_steps, true)
   for (i=0;i<seed.length;i++){
     var letter = seed[i]
     if (letter === " ")
@@ -118,9 +113,9 @@ function display(seed){
         rt = ch-rh - beat_height;
     canctx.fillRect(rl,rt,rw,rh);
     canctx.font = "30px Arial";
-    canctx.fillText(letter,rl,ch/2);
-    canctx.strokeStyle = "#ffffff"
-    canctx.strokeText(letter,rl,ch/2);
+    // canctx.fillText(letter,rl,ch/2);
+    // canctx.strokeStyle = "#ffffff"
+    // canctx.strokeText(letter,rl,ch/2);
   }
 }
 
@@ -145,22 +140,24 @@ var audio_cb = function(e) {
       moveDot(v % seed.length)
       if (v % every == 0) { // update interstitials
       	count++
-      	if (count % 8 == 0) {
+      	if (count % lead_change_frequency == 0) {
       		pos++
       		// console.log("pos", pos)
-      		var rand = Math.random() < chance_of_skip ? " " : randomsteps()
+      		var rand = Math.random() < chance_of_skip ? " " : randomsteps(max_steps)
       		// console.log("random", rand)
       		lto_add = rand
       	}
-        if (count % 12 == 0){
-          var rand = random_in_key(base, minor_penta)
+        if (count % rhythm_change_frequency == 0){
+          var rand = randomsteps(max_steps / 2)
           var rto_add = rand
-          var rind = bar(v/every, pos % 4 ) % seed.length // Broken
+          var rind = ~~(Math.random() * seed.length)
+          // var rind = bar(v/every, pos % 4) % seed.length
+          // console.log("rind", rind, "LETTER", seed[rind], "v/every", v/every, "pos", pos, "pos % 4", pos % 4)
           seed = seed.replaceAt(rind, rto_add)
           // console.log("RIND", rind)
         }
-        var lind = bar(v/every, pos % 3 + 1) % seed.length
-        // console.log("lind", lind)
+        var lind = bar(v/every, pos % 3 + 1) % seed.length // change each note methodically
+        // console.log("lind", lind, "v/every", v/every, "pos", pos, "pos % 4", pos % 4)
         // console.log("bar", v/every)
         seed = seed.replaceAt(lind, lto_add)
         display(seed)
@@ -230,6 +227,11 @@ gainNode.connect(ctx.destination);
 
 // var major = [-12, -10, -8, -7, -5, -3, -1, 0, 2, 4, 5, 7, 9, 10, 12, 14, 16, 17, 19]
 // var major_penta = [-12, -10, -7, -5, -2, 0, 2, 5, 7, 10, 12]
+
+// var minor = [-19, -17, -16, -14, -12, -10, -9, -7, -5, -4, -2, 0, 2, 3, 5, 7, 8, 10, 12, 14, 15, 17, 19]
+// var intervals = [2,1,2,2,1,2,2] // intervals in minor scale
+// var max_steps = 11 // maximum deviation from base
+// var minor_penta = [-12, -9, -7, -5, -2, 0, 3, 5, 7, 10, 12]
 
 // var oldseed = "`cW`g[`cgcg[eYcb^bV^eW^be^bVecb^"
 //var seed = "jklmnopqrstu"
